@@ -1,0 +1,4 @@
+services:
+  - class: org.yamcs.http.HttpServer
+    args:
+      port: 8090
