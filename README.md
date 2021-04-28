@@ -25,19 +25,16 @@ docker run -d -p 8086:8086 \
       <version>1.0.1</version>
     </dependency> 
        
-3- Add the following lines to the simulator yaml file
-  - class: org.yamcs.Influx.InfluxdbParameterArchive
-    args:
-      token: ""
-      org: "my-org"
-      Link: "http://localhost:8086\\"
-      bucket: "Telemetry"
+3- Use the yaml file yamcs.simulator_withInfluxdb.yaml 
       
-4- run ./run-example.sh simulation
+4- Run ./run-example.sh simulation.
 
-5- open http://localhost:8086  in your browser and go to explore to query the parameters and visulaize it.
+5- You will notice the plugin is added in the plugin tab and the archiving service is running in service tab.
 
-6-There is two rest api just for testing one for creating new buckets and other for archiving historical parameter.
+6- Open http://localhost:8086  in your browser and go to explore to query the parameters and visulaize it.
+
+
+7-There are two rest api just for testing one for creating new buckets and other for archiving historical parameter.
 
 ## License
 
