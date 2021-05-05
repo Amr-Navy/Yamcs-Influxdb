@@ -28,10 +28,11 @@ import org.yamcs.http.api.ParameterReplayListener;
 
 
 import org.yamcs.logging.Log;
-
+import org.yamcs.parameter.AggregateValue;
 import org.yamcs.parameter.ParameterValue;
 import org.yamcs.parameter.ParameterValueWithId;
 import org.yamcs.parameter.ParameterWithId;
+import org.yamcs.parameter.Value;
 import org.yamcs.parameterarchive.ConsumerAbortException;
 import org.yamcs.parameterarchive.MultiParameterDataRetrieval;
 import org.yamcs.parameterarchive.MultipleParameterValueRequest;
@@ -49,6 +50,7 @@ import org.yamcs.utils.TimeEncoding;
 import org.yamcs.xtce.XtceDb;
 import org.yamcs.xtceproc.XtceDbFactory;
 
+import com.google.protobuf.Timestamp;
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.WriteApi;
@@ -166,54 +168,7 @@ public class InfluxdbApi extends AbstractInfluxdbApi<Context> {
 		ParameterReplayListener replayListener = new ParameterReplayListener(0, 1000) {
 			@Override
 			public void onParameterData(ParameterValueWithId pvwid) {
-
-				// pvwid.toGbpParameterValue();
-				Instant t = Instant.ofEpochMilli(pvwid.getParameterValue().getGenerationTime()).minusMillis(37000);
-				Point point = Point.measurement(pvwid.getParameterValue().getParameterQualifiedName())
-						.time(t.toEpochMilli(), WritePrecision.MS);
-
-				switch (pvwid.toGbpParameterValue().getEngValue().getType()) {
-				case DOUBLE:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getDoubleValue());
-					Points.add(point);
-					break;
-				case FLOAT:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getFloatValue());
-					Points.add(point);
-					break;
-				case SINT32:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getSint32Value());
-					Points.add(point);
-					break;
-				case SINT64:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getSint64Value());
-					Points.add(point);
-					break;
-				case UINT32:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getUint32Value() & 0xFFFFFFFFL);
-					Points.add(point);
-					break;
-				case UINT64:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getUint64Value());
-					Points.add(point);
-					break;
-				case STRING:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getStringValue());
-					Points.add(point);
-					break;
-				case TIMESTAMP:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getTimestampValue());
-					Points.add(point);
-					break;
-				case BOOLEAN:
-					point.addField("value", pvwid.getParameterValue().getEngValue().getBooleanValue());
-					Points.add(point);
-					break;
-				default:
-					// log.warn("Unexpected value type {}", pv.getEngValue().getType());
-
-				}
-
+			    Points.add(CreatePoint(pvwid.getParameterValue()));
 			}
 
 			@Override
@@ -250,7 +205,75 @@ public class InfluxdbApi extends AbstractInfluxdbApi<Context> {
 		});
 
 	}
+	public Point CreatePoint(ParameterValue pv ) {
+	        Timestamp t=  TimeEncoding.toProtobufTimestamp(pv.getGenerationTime()) ;
+	        Instant instant = Instant.ofEpochSecond(t.getSeconds(), t.getNanos());
+	        Point point = Point.measurement(pv.getParameterQualifiedName()).time(instant,WritePrecision.NS);
+	        point.addTag("AquisitionStatus",pv.getAcquisitionStatus().name());
+	        point.addTag("Source", pv.getParameter().getDataSource().name());
+	        point.addTag("Name", pv.getParameter().getName());
+	       // point.addTag("Type", pv.getParameter().getParameterType().getName());
+	        point.addTag("Subsystem", pv.getParameter().getSubsystemName());
+	        point.addTag("ParameterType", pv.getEngValue().getType().toString());
+	        FillPoint(point,pv.getParameter().getName(),pv.getEngValue());
 
+	        
+	        return point;
+	    }
+	public void FillPoint(Point point,String ParameterName,Value val)
+	{
+	    switch (val.getType()) {
+	    case DOUBLE:
+	        point.addField(ParameterName+"-value", val.getDoubleValue());
+	        //Points.add(point);
+	        break;
+	    case FLOAT:
+	        point.addField(ParameterName+"-value", val.getFloatValue());
+	        //Points.add(point);
+	        break;
+	    case SINT32:
+	        point.addField(ParameterName+"-value", val.getSint32Value());
+	       // Points.add(point);
+	        break;
+	    case SINT64:
+	        point.addField(ParameterName +"-value", val.getSint64Value());
+	       // Points.add(point);
+	        break;
+	    case UINT32:
+	        point.addField(ParameterName +"-value", val.getUint32Value() & 0xFFFFFFFFL);
+	       // Points.add(point);
+	        break;
+	    case UINT64:
+	        point.addField(ParameterName+"-value", val.getUint64Value());
+	       // Points.add(point);
+	        break;
+	    case STRING:
+	        point.addField(ParameterName +"-value", val.getStringValue());
+	      //  Points.add(point);
+	        break;
+	    case TIMESTAMP:
+	        point.addField(ParameterName+ "-value", val.getTimestampValue());
+	        //Points.add(point);
+	        break;
+	    case BOOLEAN:
+	        point.addField(ParameterName+ "-value", val.getBooleanValue());
+	       // Points.add(point);
+	        break;
+	    case AGGREGATE:
+	      
+	        int size = ((AggregateValue) (val)).getMemberNames().size();
+	        for (int i = 0; i < size; i++) 
+	        {
+	            String name =((AggregateValue) (val)).getMemberName(i);
+	            Value aggval=  ((AggregateValue) (val)).getMemberValue(i);
+	            FillPoint(point,name,aggval);
+	        }
+	        break;     
+	    default:
+	        // log.warn("Unexpected value type {}", pv.getEngValue().getType());
+
+	    }
+	}
 	public void WritetoDB(List<Point> items) {
 
 		try (WriteApi writeApi = influxDBClient.getWriteApi()) {
