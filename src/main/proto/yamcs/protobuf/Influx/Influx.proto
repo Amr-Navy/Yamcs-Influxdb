@@ -1,9 +1,9 @@
 syntax = "proto2";
 
-package yamcs.protobuf.Influx;
+package yamcs.protobuf.influxdb;
 
-option java_package = "org.yamcs.Influx.api";
-option java_outer_classname = "InfluxProto";
+option java_package = "org.yamcs.influxdb.api";
+option java_outer_classname = "InfluxdbProto";
 option java_multiple_files = true;
 
 import "google/protobuf/timestamp.proto";
@@ -11,14 +11,14 @@ import "yamcs/protobuf/archive/archive.proto";
 import "yamcs/api/annotations.proto";
 import "yamcs/api/httpbody.proto";
 import "yamcs/protobuf/pvalue/pvalue.proto";
-service InfluxApi
+service InfluxdbApi
 {
 
 
   rpc ConnectToDB(ConnectRequest) returns (ConnectionStatusResposnse)
    {
     option (yamcs.api.route) = {
-      post: "/api/Influx"
+      post: "/api/influxdb"
       body: "*"
     };
   }
@@ -26,7 +26,7 @@ service InfluxApi
     // List parameter history
   rpc ArchiveParameterHistory(ParameterHistoryRequest) returns (ConnectionStatusResposnse) {
     option (yamcs.api.route) = {
-      get: "/api/Influx/{instance}/parameters/{name*}"
+      get: "/api/influxdb/{instance}/parameters/{name*}"
     };
   }
 }
